@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrección de Nombres de Usuario</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        .contenedor {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #sugerencias {
+            margin-top: 20px;
+            text-align: left;
+        }
+        #sugerencias h2 {
+            font-size: 20px;
+            color: #333;
+        }
+        #sugerencias ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #sugerencias li {
+            background-color: #f9f9f9;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <h1>Corrección de Nombres de Usuario</h1>
+        <form id="formularioUsuario">
+            <label for="nombreUsuario">Nombre de Usuario:</label>
+            <input type="text" id="nombreUsuario" name="nombreUsuario" required>
+            <button type="submit">Buscar</button>
+        </form>
+        <div id="sugerencias"></div>
+    </div>
+
+    <script>
+        // Función para calcular la distancia de Levenshtein
+        function distanciaLevenshtein(a, b) {
+            const matriz = [];
+            for (let i = 0; i <= b.length; i++) {
+                matriz[i] = [i];
+            }
+            for (let j = 0; j <= a.length; j++) {
+                matriz[0][j] = j;
+            }
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matriz[i][j] = matriz[i - 1][j - 1];
+                    } else {
+                        matriz[i][j] = Math.min(
+                            matriz[i - 1][j - 1] + 1,
+                            Math.min(matriz[i][j - 1] + 1, matriz[i - 1][j] + 1)
+                        );
+                    }
+                }
+            }
+            return matriz[b.length][a.length];
+        }
+
+        // Clase Nodo del Árbol BK
+        class Nodo {
+            constructor(punto) {
+                this.punto = punto;
+                this.hijos = {};
+            }
+        }
+
+        // Clase Árbol BK
+        class ArbolBK {
+            constructor(funcionDistancia) {
+                this.raiz = null;
+                this.funcionDistancia = funcionDistancia;
+            }
+
+            agregar(punto) {
+                if (this.raiz === null) {
+                    this.raiz = new Nodo(punto);
+                } else {
+                    this._agregar(this.raiz, punto);
+                }
+            }
+
+            _agregar(nodo, punto) {
+                const dist = this.funcionDistancia(nodo.punto, punto);
+                if (nodo.hijos[dist] === undefined) {
+                    nodo.hijos[dist] = new Nodo(punto);
+                } else {
+                    this._agregar(nodo.hijos[dist], punto);
+                }
+            }
+
+            buscar(punto, distanciaMaxima) {
+                const resultados = [];
+                this._buscar(this.raiz, punto, distanciaMaxima, resultados);
+                return resultados;
+            }
+
+            _buscar(nodo, punto, distanciaMaxima, resultados) {
+                const dist = this.funcionDistancia(nodo.punto, punto);
+                if (dist <= distanciaMaxima) {
+                    resultados.push({ punto: nodo.punto, distancia: dist });
+                }
+                for (let d = Math.max(0, dist - distanciaMaxima); d <= dist + distanciaMaxima; d++) {
+                    if (nodo.hijos[d] !== undefined) {
+                        this._buscar(nodo.hijos[d], punto, distanciaMaxima, resultados);
+                    }
+                }
+            }
+        }
+
+        // Lista de 50 nombres de ejemplo
+        const nombres = [
+            "Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack",
+            "Kara", "Liam", "Mona", "Nate", "Olive", "Paul", "Quinn", "Rita", "Steve", "Tina",
+            "Uma", "Vera", "Will", "Xena", "Yara", "Zane", "Aaron", "Bella", "Cody", "Diana",
+            "Ethan", "Fiona", "Gina", "Harry", "Isla", "John", "Kyla", "Leo", "Mia", "Noah",
+            "Oscar", "Pia", "Quincy", "Ralph", "Sophie", "Tom", "Ursula", "Vince", "Wendy", "Xander"
+        ];
+
+        // Crear el árbol BK con la distancia de Levenshtein
+        const arbol = new ArbolBK(distanciaLevenshtein);
+
+        // Agregar nombres al árbol
+        nombres.forEach(nombre => arbol.agregar(nombre));
+
+        // Manejo del formulario
+        document.getElementById('formularioUsuario').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const nombreConsulta = document.getElementById('nombreUsuario').value;
+            const distanciaMaxima = 2;
+            const nombresSimilares = arbol.buscar(nombreConsulta, distanciaMaxima);
+
+            // Mostrar resultados
+            const divSugerencias = document.getElementById('sugerencias');
+            if (nombresSimilares.length > 0) {
+                let sugerenciasHTML = '<h2>Nombres similares:</h2><ul>';
+                nombresSimilares.forEach(item => {
+                    if (item.distancia === 0) {
+                        sugerenciasHTML += `<li>${item.punto} (¡El usuario ya existe!)</li>`;
+                    } else {
+                        sugerenciasHTML += `<li>${item.punto} (distancia: ${item.distancia})</li>`;
+                    }
+                });
+                sugerenciasHTML += '</ul>';
+                divSugerencias.innerHTML = sugerenciasHTML;
+            } else {
+                divSugerencias.innerHTML = '<h2>No se encontraron nombres similares.</h2>';
+            }
+        });
+    </script>
+</body>
+</html>
